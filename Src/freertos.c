@@ -50,6 +50,7 @@
 osThreadId defaultTaskHandle;
 osThreadId LEDTaskHandle;
 osThreadId BUZZERTaskHandle;
+osThreadId LASERTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -59,6 +60,7 @@ osThreadId BUZZERTaskHandle;
 void StartDefaultTask(void const * argument);
 extern void led_task(void const * argument);
 extern void buzzer_task(void const * argument);
+extern void laser_task(void const * argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -117,6 +119,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of BUZZERTask */
   osThreadDef(BUZZERTask, buzzer_task, osPriorityIdle, 0, 128);
   BUZZERTaskHandle = osThreadCreate(osThread(BUZZERTask), NULL);
+
+  /* definition and creation of LASERTask */
+  osThreadDef(LASERTask, laser_task, osPriorityBelowNormal, 0, 128);
+  LASERTaskHandle = osThreadCreate(osThread(LASERTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */

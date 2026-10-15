@@ -1,2 +1,3 @@
 buzzer_task 烧录成功时响三声作为烧录成功标志
 led_task 常态下驱动流水灯，便于观察任务是否阻塞
+laser_task 在正常工作时，每毫秒将距离以单位cm存储到变量distance中，异常返回0xFFFF。#c板基本功能

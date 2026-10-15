@@ -50,6 +50,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     applications/buzzer_task.cpp 
     sp_middleware/io/buzzer/buzzer.cpp # buzzer
+
+    applications/laser_task.cpp 
+    sp_middleware/io/laser/laser.cpp # laser
 )
 
 # Add include paths
