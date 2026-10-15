@@ -53,6 +53,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     applications/laser_task.cpp 
     sp_middleware/io/laser/laser.cpp # laser
+
+    applications/uart_task.cpp
+    sp_middleware/io/dbus/dbus.cpp # uart
 )
 
 # Add include paths
