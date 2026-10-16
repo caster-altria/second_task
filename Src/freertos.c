@@ -53,6 +53,7 @@ osThreadId BUZZERTaskHandle;
 osThreadId LASERTaskHandle;
 osThreadId UARTTaskHandle;
 osThreadId IMUTaskHandle;
+osThreadId PLOTTERTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -65,6 +66,7 @@ extern void buzzer_task(void const * argument);
 extern void laser_task(void const * argument);
 extern void uart_task(void const * argument);
 extern void imu_task(void const * argument);
+extern void plotter_task(void const * argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -135,6 +137,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of IMUTask */
   osThreadDef(IMUTask, imu_task, osPriorityBelowNormal, 0, 256);
   IMUTaskHandle = osThreadCreate(osThread(IMUTask), NULL);
+
+  /* definition and creation of PLOTTERTask */
+  osThreadDef(PLOTTERTask, plotter_task, osPriorityLow, 0, 128);
+  PLOTTERTaskHandle = osThreadCreate(osThread(PLOTTERTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
