@@ -70,6 +70,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/can_task.cpp 
     sp_middleware/io/can/can.cpp 
     sp_middleware/motor/rm_motor/rm_motor.cpp # can
+    applications/power_meter.cpp
+    applications/power_meter.hpp # can_power_meter
+
 )
 
 # Add include paths
