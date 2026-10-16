@@ -66,6 +66,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     applications/plotter_task.cpp 
     sp_middleware/io/plotter/plotter.cpp # plotter
+
+    applications/can_task.cpp 
+    sp_middleware/io/can/can.cpp 
+    sp_middleware/motor/rm_motor/rm_motor.cpp # can
 )
 
 # Add include paths
