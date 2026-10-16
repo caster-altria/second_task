@@ -56,6 +56,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     applications/uart_task.cpp
     sp_middleware/io/dbus/dbus.cpp # uart
+    sp_middleware/referee/pm02/pm02.cpp 
+    sp_middleware/tools/crc/crc.cpp # uart_referee
 
     applications/imu_task.cpp 
     sp_middleware/io/bmi088/bmi088.cpp 
