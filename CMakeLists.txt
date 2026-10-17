@@ -11,6 +11,9 @@ cmake_minimum_required(VERSION 3.22)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 
 # Define the build type
@@ -28,8 +31,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 project(${CMAKE_PROJECT_NAME})
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
-# Enable CMake support for ASM and C languages
-enable_language(C ASM)
+# Enable CMake support for ASM, C, and C++ languages
+enable_language(C CXX ASM)
 
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
@@ -73,12 +76,18 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/power_meter.cpp
     applications/power_meter.hpp # can_power_meter
 
+    applications/chassis_task.cpp
+    applications/chassis_controller.cpp
+    sp_middleware/tools/mecanum/mecanum.cpp
+    sp_middleware/tools/math_tools/math_tools.cpp
+    sp_middleware/tools/pid/pid.cpp # chassis
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     sp_middleware/
+    applications/
 )
 
 # Add project symbols (macros)
