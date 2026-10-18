@@ -38,6 +38,109 @@ constexpr float kWzInputSign = -1.0f;
 // 四个轮子的统一目标角速度上限，单位: rad/s。
 constexpr float kMaxWheelSpeed = 3.0f;
 
+// 功率预测模型参数，公式来自《底盘功率控制》附件：
+// Pin = Σ(τ * ω) + K1 * Σ(τ²) + K2 * Σ(ω²) + K3
+// K1、K2 使用附件给出的初始经验值；K3 和功率上限需要接入实测数据后再替换。
+constexpr float kPowerK1 = 2.0f;
+constexpr float kPowerK2 = 0.01f;
+constexpr float kPowerK3 = 5.0f;       // 暂定静态功率，单位: W
+constexpr float kPowerLimit = 60.0f;   // 暂定输入功率上限，单位: W
+constexpr float kPowerQuadraticEpsilon = 1.0e-6f;
+
+// 功率模型的参考系必须和拟合 K1、K2 时使用的参考系一致。
+// 当前默认使用输出轴量：RM_Motor::speed 是减速后转速，RM_Motor::cmd() 接收减速后力矩。
+// 如果后续确认 K1、K2 是按转子侧数据拟合，将这里改成 ROTOR；计算函数会自动换算。
+enum class PowerReferenceFrame
+{
+  OUTPUT_SHAFT,
+  ROTOR
+};
+
+constexpr PowerReferenceFrame kPowerReferenceFrame = PowerReferenceFrame::OUTPUT_SHAFT;
+
+// 按照当前参考系计算功率模型中的转矩和角速度。
+void convert_to_power_reference(float output_torque, float output_speed, float & torque, float & speed)
+{
+  if (kPowerReferenceFrame == PowerReferenceFrame::ROTOR) {
+    torque = output_torque / kGearRatio;
+    speed = output_speed * kGearRatio;
+  }
+  else {
+    torque = output_torque;
+    speed = output_speed;
+  }
+}
+
+// 根据附件中的二次方程求解统一力矩缩放系数 K。
+// 所有轮子的力矩，包括反向制动力，都使用同一个 K，保证预测值和实际发送值一致。
+// 返回值限制在 [0, 1]：1 表示不需要限幅，0 表示本周期不发送主动力矩。
+float calculate_power_scale(const float torques[4], const float speeds[4])
+{
+  float torque_speed_sum = 0.0f;
+  float torque_square_sum = 0.0f;
+  float speed_square_sum = 0.0f;
+
+  // 先把所有输入转换到与 K1、K2 拟合时相同的参考系，再计算三项系数。
+  for (int index = 0; index < 4; ++index) {
+    float model_torque = 0.0f;
+    float model_speed = 0.0f;
+    convert_to_power_reference(torques[index], speeds[index], model_torque, model_speed);
+    torque_speed_sum += model_torque * model_speed;
+    torque_square_sum += model_torque * model_torque;
+    speed_square_sum += model_speed * model_speed;
+  }
+
+  // τ实际 = K * τPID，代入功率模型后得到：
+  // P(K) = a*K² + b*K + c，其中 P(K) <= 0 表示没有超过功率上限。
+  const float quadratic = kPowerK1 * torque_square_sum;
+  const float linear = torque_speed_sum;
+  const float constant = kPowerK2 * speed_square_sum + kPowerK3 - kPowerLimit;
+
+  const auto power_error = [quadratic, linear, constant](float scale) {
+    return quadratic * scale * scale + linear * scale + constant;
+  };
+
+  // K=1 对应完整发送 PID 力矩；如果没有超限，不进行任何缩放。
+  if (power_error(1.0f) <= 0.0f) {
+    return 1.0f;
+  }
+
+  // 二次项接近零时退化为一次方程，避免数值上除以接近零的数。
+  if (quadratic <= kPowerQuadraticEpsilon) {
+    if (std::fabs(linear) <= kPowerQuadraticEpsilon) {
+      return constant <= 0.0f ? 1.0f : 0.0f;
+    }
+
+    const float scale = -constant / linear;
+    if (scale >= 0.0f && scale <= 1.0f && power_error(scale) <= 0.0f) {
+      return scale;
+    }
+
+    return 0.0f;
+  }
+
+  const float discriminant = linear * linear - 4.0f * quadratic * constant;
+  if (discriminant < 0.0f) {
+    return 0.0f;
+  }
+
+  // 取较大的根，因为它代表满足功率上限时仍可保留的最大力矩比例。
+  const float scale = (-linear + std::sqrt(discriminant)) / (2.0f * quadratic);
+  if (!std::isfinite(scale)) {
+    return 0.0f;
+  }
+
+  const float clamped_scale = std::fmax(0.0f, std::fmin(1.0f, scale));
+  return power_error(clamped_scale) <= 0.0f ? clamped_scale : 0.0f;
+}
+
+// 根据功率缩放结果处理单个轮子的输出。
+// 所有力矩统一使用 K 缩放，包括反向制动力。
+float apply_power_scale(float torque, float power_scale)
+{
+  return torque * power_scale;
+}
+
 
 sp::Mecanum mecanum(
   kWheelRadius,
@@ -281,11 +384,24 @@ void Controller::update_motor_control(uint32_t now_ms)
   pidRf.calc(wheel_speeds_.rf, motorRf.speed);
   pidRr.calc(wheel_speeds_.rr, motorRr.speed);
 
-  // sp::PID::out 的单位与 PID 参数约定一致，这里配置为 N·m，直接交给 RM_Motor::cmd()，由电机中间件完成 N·m 到 C620 原始命令的转换。
-  motorLf.cmd(pidLf.out);
-  motorLr.cmd(pidLr.out);
-  motorRf.cmd(pidRf.out);
-  motorRr.cmd(pidRr.out);
+  // PID 输出是期望转矩，RM_Motor::speed 是电机输出轴角速度。
+  // 两者都来自 RM_Motor 中间件约定的单位，可以直接代入附件中的功率预测公式。
+  const float requested_torques[4] = {pidLf.out, pidLr.out, pidRf.out, pidRr.out};
+  const float measured_speeds[4] = {
+    motorLf.speed,
+    motorLr.speed,
+    motorRf.speed,
+    motorRr.speed,
+  };
+
+  // 功率超限时，四个轮子的全部力矩统一乘同一个 K，包括反向制动力。
+  const float power_scale = calculate_power_scale(requested_torques, measured_speeds);
+
+  // 先经过功率限制，再交给 RM_Motor::cmd() 转换成 C620 原始电流命令。
+  motorLf.cmd(apply_power_scale(requested_torques[0], power_scale));
+  motorLr.cmd(apply_power_scale(requested_torques[1], power_scale));
+  motorRf.cmd(apply_power_scale(requested_torques[2], power_scale));
+  motorRr.cmd(apply_power_scale(requested_torques[3], power_scale));
 }
 
 void Controller::write_motor_commands(uint8_t * data) const
