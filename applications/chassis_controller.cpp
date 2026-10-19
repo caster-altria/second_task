@@ -16,9 +16,9 @@ constexpr float kHalfWidth = 0.185f;
 constexpr float kGearRatio = 13.7f;
 
 // 暂定轮序和 C620 ID，确认实际接线后只需修改这里
-constexpr uint8_t kMotorIdLf = 1U;
-constexpr uint8_t kMotorIdLr = 2U;
-constexpr uint8_t kMotorIdRf = 3U;
+constexpr uint8_t kMotorIdLf = 2U;
+constexpr uint8_t kMotorIdLr = 3U;
+constexpr uint8_t kMotorIdRf = 1U;
 constexpr uint8_t kMotorIdRr = 4U;
 
 // 遥控器安全参数：摇杆死区和进入 ENABLED 前的回中保持时间
@@ -26,23 +26,23 @@ constexpr float kStickDeadband = 0.12f;
 constexpr uint32_t kArmingHoldMs = 200U;
 
 // 保守的底盘速度上限，后续实车调试时再调整
-constexpr float kMaxVx = 0.20f;
-constexpr float kMaxVy = 0.15f;
-constexpr float kMaxWz = 0.25f;
+constexpr float kMaxVx = 1.0f;
+constexpr float kMaxVy = 2.0f;
+constexpr float kMaxWz = 1.0f;
 
 // DBUS 摇杆方向与麦轮坐标系方向的暂定修正符号
 constexpr float kVyInputSign = -1.0f;
 constexpr float kWzInputSign = -1.0f;
 
 // 四个轮子的统一目标角速度上限，单位: rad/s。
-constexpr float kMaxWheelSpeed = 3.0f;
+constexpr float kMaxWheelSpeed = 4.55f;
 
 // 功率预测模型参数，公式来自《底盘功率控制》附件：
 // Pin = Σ(τ * ω) + K1 * Σ(τ²) + K2 * Σ(ω²) + K3
 // K1、K2 使用附件给出的初始经验值；K3 和功率上限需要接入实测数据后再替换。
-constexpr float kPowerK1 = 2.0f;
+constexpr float kPowerK1 = 2.8f;
 constexpr float kPowerK2 = 0.01f;
-constexpr float kPowerK3 = 5.0f;      // 暂定静态功率，单位: W
+constexpr float kPowerK3 = 4.0f;      // 暂定静态功率，单位: W
 constexpr float kPowerLimit = 60.0f;  // 暂定输入功率上限，单位: W
 constexpr float kPowerQuadraticEpsilon = 1.0e-6f;
 
@@ -134,6 +134,26 @@ float calculate_power_scale(const float torques[4], const float speeds[4])
   return power_error(clamped_scale) <= 0.0f ? clamped_scale : 0.0f;
 }
 
+// 使用和 calculate_power_scale() 相同的参考系，计算指定力矩下的预测功率。
+// Plotter 观察的是经过 K 缩放后的最终预测功率，因此调用者应传入缩放后的力矩。
+float calculate_predicted_power(const float torques[4], const float speeds[4])
+{
+  float torque_speed_sum = 0.0f;
+  float torque_square_sum = 0.0f;
+  float speed_square_sum = 0.0f;
+
+  for (int index = 0; index < 4; ++index) {
+    float model_torque = 0.0f;
+    float model_speed = 0.0f;
+    convert_to_power_reference(torques[index], speeds[index], model_torque, model_speed);
+    torque_speed_sum += model_torque * model_speed;
+    torque_square_sum += model_torque * model_torque;
+    speed_square_sum += model_speed * model_speed;
+  }
+
+  return torque_speed_sum + kPowerK1 * torque_square_sum + kPowerK2 * speed_square_sum + kPowerK3;
+}
+
 // 根据功率缩放结果处理单个轮子的输出。
 // 所有力矩统一使用 K 缩放，包括反向制动力。
 float apply_power_scale(float torque, float power_scale) { return torque * power_scale; }
@@ -150,13 +170,13 @@ sp::RM_Motor motorRr(kMotorIdRr, sp::RM_Motors::M3508, kGearRatio);
 constexpr float kPidDt = 0.001f;
 
 // 第一次测试只使用 P，积分和微分暂时关闭。
-constexpr float kWheelKp = 0.20f;
+constexpr float kWheelKp = 0.47f;
 constexpr float kWheelKi = 0.0f;
-constexpr float kWheelKd = 0.0f;
+constexpr float kWheelKd = 0.0005f;
 
 // PID输出单位为 N·m，先设置保守上限。
-constexpr float kWheelMaxOut = 0.30f;
-constexpr float kWheelMaxIOut = 0.0f;
+constexpr float kWheelMaxOut = 1.0f;
+constexpr float kWheelMaxIOut = 0.2f;
 
 // kd为0时该参数暂时没有作用。
 constexpr float kWheelDAlpha = 1.0f;
@@ -199,6 +219,10 @@ void Controller::clear_command()
   command_.vx = 0.0f;
   command_.vy = 0.0f;
   command_.wz = 0.0f;
+
+  plot_data_.command_vx = 0.0f;
+  plot_data_.command_vy = 0.0f;
+  plot_data_.command_wz = 0.0f;
 }
 
 void Controller::update_command(const RemoteInput & input)
@@ -220,6 +244,11 @@ void Controller::clear_wheel_speeds()
   wheel_speeds_.lr = 0.0f;
   wheel_speeds_.rf = 0.0f;
   wheel_speeds_.rr = 0.0f;
+
+  plot_data_.target_lf = 0.0f;
+  plot_data_.target_lr = 0.0f;
+  plot_data_.target_rf = 0.0f;
+  plot_data_.target_rr = 0.0f;
 }
 
 void Controller::update_wheel_speeds()
@@ -239,6 +268,15 @@ void Controller::update_wheel_speeds()
   wheel_speeds_.lr = mecanum.speed_lr * scale;
   wheel_speeds_.rf = mecanum.speed_rf * scale;
   wheel_speeds_.rr = mecanum.speed_rr * scale;
+
+  // 保存本周期的底盘指令和四个目标轮速，供 Plotter 按需读取。
+  plot_data_.command_vx = command_.vx;
+  plot_data_.command_vy = command_.vy;
+  plot_data_.command_wz = command_.wz;
+  plot_data_.target_lf = wheel_speeds_.lf;
+  plot_data_.target_lr = wheel_speeds_.lr;
+  plot_data_.target_rf = wheel_speeds_.rf;
+  plot_data_.target_rr = wheel_speeds_.rr;
 }
 
 void Controller::update(const RemoteInput & input, uint32_t now_ms)
@@ -330,9 +368,21 @@ void Controller::clear_motor_control()
 
 void Controller::update_motor_control(uint32_t now_ms)
 {
+  // 无论当前是否允许输出，都更新实际反馈速度，便于调试 CAN 反馈是否正常。
+  plot_data_.speed_lf = motorLf.speed;
+  plot_data_.speed_lr = motorLr.speed;
+  plot_data_.speed_rf = motorRf.speed;
+  plot_data_.speed_rr = motorRr.speed;
+
   // 只有遥控器状态机已经进入 ENABLED，且四个电机都在线时，才允许执行 PID。其余情况统一清 PID 并输出零力矩。
   if (state_ != State::ENABLED || !motors_alive(now_ms)) {
     clear_motor_control();
+    plot_data_.torque_lf = 0.0f;
+    plot_data_.torque_lr = 0.0f;
+    plot_data_.torque_rf = 0.0f;
+    plot_data_.torque_rr = 0.0f;
+    plot_data_.power_scale = 0.0f;
+    plot_data_.predicted_power = 0.0f;
     return;
   }
 
@@ -352,14 +402,30 @@ void Controller::update_motor_control(uint32_t now_ms)
     motorRr.speed,
   };
 
+  // 保存功率缩放前的 PID 力矩，便于观察 PID 是否先发生饱和。
+  plot_data_.torque_lf = requested_torques[0];
+  plot_data_.torque_lr = requested_torques[1];
+  plot_data_.torque_rf = requested_torques[2];
+  plot_data_.torque_rr = requested_torques[3];
+
   // 功率超限时，四个轮子的全部力矩统一乘同一个 K，包括反向制动力。
   const float power_scale = calculate_power_scale(requested_torques, measured_speeds);
 
+  const float scaled_torques[4] = {
+    apply_power_scale(requested_torques[0], power_scale),
+    apply_power_scale(requested_torques[1], power_scale),
+    apply_power_scale(requested_torques[2], power_scale),
+    apply_power_scale(requested_torques[3], power_scale),
+  };
+
+  plot_data_.power_scale = power_scale;
+  plot_data_.predicted_power = calculate_predicted_power(scaled_torques, measured_speeds);
+
   // 先经过功率限制，再交给 RM_Motor::cmd() 转换成 C620 原始电流命令。
-  motorLf.cmd(apply_power_scale(requested_torques[0], power_scale));
-  motorLr.cmd(apply_power_scale(requested_torques[1], power_scale));
-  motorRf.cmd(apply_power_scale(requested_torques[2], power_scale));
-  motorRr.cmd(apply_power_scale(requested_torques[3], power_scale));
+  motorLf.cmd(scaled_torques[0]);
+  motorLr.cmd(scaled_torques[1]);
+  motorRf.cmd(scaled_torques[2]);
+  motorRr.cmd(scaled_torques[3]);
 }
 
 void Controller::write_motor_commands(uint8_t * data) const
@@ -370,18 +436,6 @@ void Controller::write_motor_commands(uint8_t * data) const
   motorRf.write(data);
   motorRr.write(data);
 }
-
-uint16_t Controller::motor_tx_id() const
-{
-  // 四个 ID 为 1~4 的 M3508 都使用同一个标准控制帧 ID 0x200；具体 ID 计算由 RM_Motor 中间件完成，这里直接读取电机对象的 tx_id。
-  return motorLf.tx_id;
-}
-
-const ChassisCommand & Controller::command() const { return command_; }
-
-const WheelSpeedCommand & Controller::wheel_speeds() const { return wheel_speeds_; }
-
-State Controller::state() const { return state_; }
 
 void Controller::set_auto_speed(float vx)
 {
@@ -398,5 +452,19 @@ float Controller::measured_vx()
   mecanum.update(motorLf.speed, motorLr.speed, motorRf.speed, motorRr.speed);
   return mecanum.vx;
 }
+
+uint16_t Controller::motor_tx_id() const
+{
+  // 四个 ID 为 1~4 的 M3508 都使用同一个标准控制帧 ID 0x200；具体 ID 计算由 RM_Motor 中间件完成，这里直接读取电机对象的 tx_id。
+  return motorLf.tx_id;
+}
+
+const ChassisCommand & Controller::command() const { return command_; }
+
+const PlotData & Controller::plot_data() const { return plot_data_; }
+
+const WheelSpeedCommand & Controller::wheel_speeds() const { return wheel_speeds_; }
+
+State Controller::state() const { return state_; }
 
 }  // namespace chassis

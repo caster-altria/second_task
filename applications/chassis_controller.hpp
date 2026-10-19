@@ -37,6 +37,33 @@ struct WheelSpeedCommand
   float rr = 0.0f;  // 右后轮目标角速度，单位: rad/s
 };
 
+// 提供给 Plotter 的底盘调试数据。
+// 这些数据由 Controller 更新，Plotter 任务只负责读取和发送。
+struct PlotData
+{
+  float command_vx = 0.0f;
+  float command_vy = 0.0f;
+  float command_wz = 0.0f;
+
+  float target_lf = 0.0f;
+  float target_lr = 0.0f;
+  float target_rf = 0.0f;
+  float target_rr = 0.0f;
+
+  float speed_lf = 0.0f;
+  float speed_lr = 0.0f;
+  float speed_rf = 0.0f;
+  float speed_rr = 0.0f;
+
+  float torque_lf = 0.0f;
+  float torque_lr = 0.0f;
+  float torque_rf = 0.0f;
+  float torque_rr = 0.0f;
+
+  float power_scale = 0.0f;
+  float predicted_power = 0.0f;
+};
+
 class Controller
 {
 public:
@@ -44,6 +71,7 @@ public:
 
   const WheelSpeedCommand & wheel_speeds() const;
   const ChassisCommand & command() const;
+  const PlotData & plot_data() const;
   State state() const;
   // 更新某个电机的 CAN 反馈数据。
   void update_motor_feedback(uint32_t rx_id, uint8_t * data, uint32_t stamp_ms);
@@ -54,14 +82,17 @@ public:
   // 将四个电机的控制量写入 CAN 数据缓冲区。
   void write_motor_commands(uint8_t * data) const;
 
-  // 获取四个 M3508 共用的控制帧 ID。
-  uint16_t motor_tx_id() const;
+  // 清除 PID 状态，并让四个电机输出零力矩。
+  void clear_motor_control();
 
   // 自动模式：直接下发前进速度，跳过摇杆映射与解锁流程
   void set_auto_speed(float vx);
 
   // [只读] 实测前进速度，单位 m/s，供里程计积分
   float measured_vx();
+
+  // 获取四个 M3508 共用的控制帧 ID。
+  uint16_t motor_tx_id() const;
 
 private:
   bool sticks_centered(const RemoteInput & input) const;
@@ -78,14 +109,12 @@ private:
   // 判断四个电机反馈是否都在线。
   bool motors_alive(uint32_t now_ms) const;
 
-  // 清除 PID 状态，并让四个电机输出零力矩。
-  void clear_motor_control();
-
   State state_ = State::DISABLED;
   uint32_t arming_start_ms_ = 0;
   ChassisCommand command_{};
   // 轮速指令
   WheelSpeedCommand wheel_speeds_{};
+  PlotData plot_data_{};
 };
 
 }  // namespace chassis
