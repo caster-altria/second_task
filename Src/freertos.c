@@ -56,6 +56,7 @@ osThreadId IMUTaskHandle;
 osThreadId PLOTTERTaskHandle;
 osThreadId CANTaskHandle;
 osThreadId CHASSISTaskHandle;
+osThreadId GIMBALTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -71,6 +72,7 @@ extern void imu_task(void const * argument);
 extern void plotter_task(void const * argument);
 extern void can_task(void const * argument);
 extern void chassis_task(void const * argument);
+extern void gimbal_task(void const * argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -151,8 +153,12 @@ void MX_FREERTOS_Init(void) {
   CANTaskHandle = osThreadCreate(osThread(CANTask), NULL);
 
   /* definition and creation of CHASSISTask */
-  osThreadDef(CHASSISTask, chassis_task, osPriorityNormal, 0, 128);
+  osThreadDef(CHASSISTask, chassis_task, osPriorityNormal, 0, 256);
   CHASSISTaskHandle = osThreadCreate(osThread(CHASSISTask), NULL);
+
+  /* definition and creation of GIMBALTask */
+  osThreadDef(GIMBALTask, gimbal_task, osPriorityNormal, 0, 256);
+  GIMBALTaskHandle = osThreadCreate(osThread(GIMBALTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */

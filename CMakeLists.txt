@@ -82,6 +82,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     sp_middleware/tools/math_tools/math_tools.cpp
     sp_middleware/tools/pid/pid.cpp # chassis
     applications/auto_straight.cpp # chassis_auto_straight
+
+    applications/gimbal_task.cpp
+    applications/gimbal_controller.cpp # gimbal
 )
 
 # Add include paths
