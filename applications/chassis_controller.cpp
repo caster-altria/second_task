@@ -5,7 +5,6 @@
 
 #include "motor/rm_motor/rm_motor.hpp"
 #include "tools/mecanum/mecanum.hpp"
-
 #include "tools/pid/pid.hpp"
 
 namespace
@@ -43,8 +42,8 @@ constexpr float kMaxWheelSpeed = 3.0f;
 // K1、K2 使用附件给出的初始经验值；K3 和功率上限需要接入实测数据后再替换。
 constexpr float kPowerK1 = 2.0f;
 constexpr float kPowerK2 = 0.01f;
-constexpr float kPowerK3 = 5.0f;       // 暂定静态功率，单位: W
-constexpr float kPowerLimit = 60.0f;   // 暂定输入功率上限，单位: W
+constexpr float kPowerK3 = 5.0f;      // 暂定静态功率，单位: W
+constexpr float kPowerLimit = 60.0f;  // 暂定输入功率上限，单位: W
 constexpr float kPowerQuadraticEpsilon = 1.0e-6f;
 
 // 功率模型的参考系必须和拟合 K1、K2 时使用的参考系一致。
@@ -59,7 +58,8 @@ enum class PowerReferenceFrame
 constexpr PowerReferenceFrame kPowerReferenceFrame = PowerReferenceFrame::OUTPUT_SHAFT;
 
 // 按照当前参考系计算功率模型中的转矩和角速度。
-void convert_to_power_reference(float output_torque, float output_speed, float & torque, float & speed)
+void convert_to_power_reference(
+  float output_torque, float output_speed, float & torque, float & speed)
 {
   if (kPowerReferenceFrame == PowerReferenceFrame::ROTOR) {
     torque = output_torque / kGearRatio;
@@ -136,20 +136,9 @@ float calculate_power_scale(const float torques[4], const float speeds[4])
 
 // 根据功率缩放结果处理单个轮子的输出。
 // 所有力矩统一使用 K 缩放，包括反向制动力。
-float apply_power_scale(float torque, float power_scale)
-{
-  return torque * power_scale;
-}
+float apply_power_scale(float torque, float power_scale) { return torque * power_scale; }
 
-
-sp::Mecanum mecanum(
-  kWheelRadius,
-  kHalfLength,
-  kHalfWidth,
-  false,
-  false,
-  true,
-  true);
+sp::Mecanum mecanum(kWheelRadius, kHalfLength, kHalfWidth, false, false, true, true);
 
 // 四个轮子对应的电机对象
 sp::RM_Motor motorLf(kMotorIdLf, sp::RM_Motors::M3508, kGearRatio);
@@ -172,51 +161,22 @@ constexpr float kWheelMaxIOut = 0.0f;
 // kd为0时该参数暂时没有作用。
 constexpr float kWheelDAlpha = 1.0f;
 
-sp::PID pidLf(
-  kPidDt,
-  kWheelKp,
-  kWheelKi,
-  kWheelKd,
-  kWheelMaxOut,
-  kWheelMaxIOut,
-  kWheelDAlpha);
+sp::PID pidLf(kPidDt, kWheelKp, kWheelKi, kWheelKd, kWheelMaxOut, kWheelMaxIOut, kWheelDAlpha);
 
-sp::PID pidLr(
-  kPidDt,
-  kWheelKp,
-  kWheelKi,
-  kWheelKd,
-  kWheelMaxOut,
-  kWheelMaxIOut,
-  kWheelDAlpha);
+sp::PID pidLr(kPidDt, kWheelKp, kWheelKi, kWheelKd, kWheelMaxOut, kWheelMaxIOut, kWheelDAlpha);
 
-sp::PID pidRf(
-  kPidDt,
-  kWheelKp,
-  kWheelKi,
-  kWheelKd,
-  kWheelMaxOut,
-  kWheelMaxIOut,
-  kWheelDAlpha);
+sp::PID pidRf(kPidDt, kWheelKp, kWheelKi, kWheelKd, kWheelMaxOut, kWheelMaxIOut, kWheelDAlpha);
 
-sp::PID pidRr(
-  kPidDt,
-  kWheelKp,
-  kWheelKi,
-  kWheelKd,
-  kWheelMaxOut,
-  kWheelMaxIOut,
-  kWheelDAlpha);
+sp::PID pidRr(kPidDt, kWheelKp, kWheelKi, kWheelKd, kWheelMaxOut, kWheelMaxIOut, kWheelDAlpha);
 
-}
+}  // namespace
 
 namespace chassis
 {
 bool Controller::sticks_centered(const RemoteInput & input) const
 {
   // 摇杆回中判定
-  return std::fabs(input.ch_lv) <= kStickDeadband &&
-         std::fabs(input.ch_lh) <= kStickDeadband &&
+  return std::fabs(input.ch_lv) <= kStickDeadband && std::fabs(input.ch_lh) <= kStickDeadband &&
          std::fabs(input.ch_lu) <= kStickDeadband;
 }
 
@@ -273,15 +233,13 @@ void Controller::update_wheel_speeds()
   max_abs_speed = std::fmax(max_abs_speed, std::fabs(mecanum.speed_rr));
 
   // 如果某个轮子超过角速度上线，则四个轮子按同一比例缩小，以免行进方向发生变化
-  const float scale =
-    max_abs_speed > kMaxWheelSpeed ? kMaxWheelSpeed / max_abs_speed : 1.0f;
+  const float scale = max_abs_speed > kMaxWheelSpeed ? kMaxWheelSpeed / max_abs_speed : 1.0f;
 
   wheel_speeds_.lf = mecanum.speed_lf * scale;
   wheel_speeds_.lr = mecanum.speed_lr * scale;
   wheel_speeds_.rf = mecanum.speed_rf * scale;
   wheel_speeds_.rr = mecanum.speed_rr * scale;
 }
-
 
 void Controller::update(const RemoteInput & input, uint32_t now_ms)
 {
@@ -351,8 +309,8 @@ void Controller::update_motor_feedback(uint32_t rx_id, uint8_t * data, uint32_t 
 bool Controller::motors_alive(uint32_t now_ms) const
 {
   // 四个轮子必须全部在 RM_Motor 中间件规定的超时时间内收到反馈，才允许继续输出力矩。只要有一个电机掉线，就进入安全停机逻辑。
-  return motorLf.is_alive(now_ms) && motorLr.is_alive(now_ms) &&
-         motorRf.is_alive(now_ms) && motorRr.is_alive(now_ms);
+  return motorLf.is_alive(now_ms) && motorLr.is_alive(now_ms) && motorRf.is_alive(now_ms) &&
+         motorRr.is_alive(now_ms);
 }
 
 void Controller::clear_motor_control()
@@ -419,19 +377,26 @@ uint16_t Controller::motor_tx_id() const
   return motorLf.tx_id;
 }
 
-const ChassisCommand & Controller::command() const
+const ChassisCommand & Controller::command() const { return command_; }
+
+const WheelSpeedCommand & Controller::wheel_speeds() const { return wheel_speeds_; }
+
+State Controller::state() const { return state_; }
+
+void Controller::set_auto_speed(float vx)
 {
-  return command_;
+  this->state_ = State::ENABLED;                                  // 自动模式直接使能，不等回中
+  this->command_.vx = std::fmax(-kMaxVx, std::fmin(kMaxVx, vx));  // 与手动共用上限
+  this->command_.vy = 0.0f;
+  this->command_.wz = 0.0f;
+  this->update_wheel_speeds();
 }
 
-const WheelSpeedCommand & Controller::wheel_speeds() const
+float Controller::measured_vx()
 {
-  return wheel_speeds_;
-}
-
-State Controller::state() const
-{
-  return state_;
+  // Mecanum::update() 只写 vx/vy/wz，不覆盖 speed_*，可与本周期 calc() 共用同一实例
+  mecanum.update(motorLf.speed, motorLr.speed, motorRf.speed, motorRr.speed);
+  return mecanum.vx;
 }
 
 }  // namespace chassis

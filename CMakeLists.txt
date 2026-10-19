@@ -81,6 +81,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     sp_middleware/tools/mecanum/mecanum.cpp
     sp_middleware/tools/math_tools/math_tools.cpp
     sp_middleware/tools/pid/pid.cpp # chassis
+    applications/auto_straight.cpp # chassis_auto_straight
 )
 
 # Add include paths

@@ -57,7 +57,11 @@ public:
   // 获取四个 M3508 共用的控制帧 ID。
   uint16_t motor_tx_id() const;
 
+  // 自动模式：直接下发前进速度，跳过摇杆映射与解锁流程
+  void set_auto_speed(float vx);
 
+  // [只读] 实测前进速度，单位 m/s，供里程计积分
+  float measured_vx();
 
 private:
   bool sticks_centered(const RemoteInput & input) const;
