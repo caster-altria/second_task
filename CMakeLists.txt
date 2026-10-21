@@ -84,6 +84,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/auto_straight.cpp # chassis_auto_straight
 
     applications/gimbal_task.cpp
+    applications/gimbal_fold_task.cpp
     applications/gimbal_controller.cpp # gimbal
 )
 

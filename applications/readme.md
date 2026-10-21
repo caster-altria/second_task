@@ -71,3 +71,11 @@ K1、K2、K3、功率上限以及参考系都需要结合实测确认。
 功率限制代码位于 applications/chassis_controller.cpp。
 
 云台代码进程：创建了云台电机，设置了位置环pid，以及角度限幅，紧急失能，设置target_angle.yaw即可输出
+
+三、云台自动折叠
+gimbal_fold_task.cpp：独立的云台折叠任务。
+GY-56 通过 applications/laser_task.cpp 发布 distance，检测到前方距离小于阈值后开始折叠。
+折叠任务只修改 gimbal::target_angle.fold，位置 PID 和 CAN 输出仍由 gimbal_task.cpp 完成。
+折叠到位后读取 auto_straight 的已行驶距离，超过设定行程后复位云台。
+auto_straight 只由 chassis_task.cpp 调用 update()，折叠任务只读取 active() 和 travelled_m()，避免重复累加行程。
+折叠角度偏移、入口距离、复位行程和动作超时位于 applications/gimbal_fold_task.cpp，实机调试时按结构尺寸和反馈调整。
