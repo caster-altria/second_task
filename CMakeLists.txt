@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.22)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
@@ -84,8 +84,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/auto_straight.cpp # chassis_auto_straight
 
     applications/gimbal_task.cpp
-    applications/gimbal_fold_task.cpp
     applications/gimbal_controller.cpp # gimbal
+    applications/trajectory_task.cpp # gimbal_trajectory
+    applications/gimbal_fold_task.cpp # gimbal_fold
 )
 
 # Add include paths

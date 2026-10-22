@@ -12,9 +12,10 @@
 // remote 由 applications/uart_task.cpp 创建，这里只读取遥控器在线状态和右拨杆。
 // 这些对象不能在本文件中再次定义，否则会与原有任务产生重复对象和控制冲突。
 extern uint16_t distance;
-extern chassis::AutoStraight auto_straight;
+extern float chassis_travelled_m;
 extern sp::RM_Motor motor_fold;
 extern sp::DBus remote;
+extern chassis::AutoStraight auto_straight;
 
 namespace
 {
@@ -59,8 +60,7 @@ float get_fold_angle(float normal_angle_rad)
   // 先按正常角度加偏移量计算，再套用 gimbal_controller.hpp 中的折叠角度限幅。
   const float requested_angle_rad = normal_angle_rad + FOLD_ANGLE_OFFSET_RAD;
   return std::fmax(
-    gimbal::FOLD_ANGLE_MIN_RAD,
-    std::fmin(requested_angle_rad, gimbal::FOLD_ANGLE_MAX_RAD));
+    gimbal::FOLD_ANGLE_MIN_RAD, std::fmin(requested_angle_rad, gimbal::FOLD_ANGLE_MAX_RAD));
 }
 
 }  // namespace
@@ -82,9 +82,9 @@ extern "C" void gimbal_fold_task(void const * argument)
 
     // gimbal_task.cpp 负责失能、清 PID、计算位置环并发送 CAN。
     // 本任务只更新 gimbal::target_angle.fold，不能调用 motor_fold.cmd() 或 write()。
-    const bool control_available =
-      remote.is_alive(now_ms) && remote.sw_r != sp::DBusSwitchMode::DOWN &&
-      motor_fold.is_alive(now_ms);
+    const bool control_available = remote.is_alive(now_ms) &&
+                                   remote.sw_r != sp::DBusSwitchMode::DOWN &&
+                                   motor_fold.is_alive(now_ms);
 
     if (!control_available) {
       // 遥控器失联、右拨杆 DOWN 或电机反馈超时时，不推进折叠流程。
@@ -97,17 +97,18 @@ extern "C" void gimbal_fold_task(void const * argument)
 
     // 红外安装在云台前端，折叠后其方向会变化，因此只用它判断“进入隧道”。
     // 复位不依赖红外；复位完成后，必须先重新测到阈值外距离，才允许下一次折叠。
-    if (fold_state == FoldState::NORMAL &&
-        measured_distance_cm != INVALID_DISTANCE_CM &&
-        measured_distance_cm > FOLD_DISTANCE_CM) {
+    if (
+      fold_state == FoldState::NORMAL && measured_distance_cm != INVALID_DISTANCE_CM &&
+      measured_distance_cm > FOLD_DISTANCE_CM) {
       entry_armed = true;
     }
 
     switch (fold_state) {
       case FoldState::NORMAL:
         // GY-56 检测到入口且已经解除上一次触发锁定时，记录正常角度并开始折叠。
-        if (entry_armed && measured_distance_cm != INVALID_DISTANCE_CM &&
-            measured_distance_cm <= FOLD_DISTANCE_CM) {
+        if (
+          entry_armed && measured_distance_cm != INVALID_DISTANCE_CM &&
+          measured_distance_cm <= FOLD_DISTANCE_CM) {
           normal_angle_rad = motor_fold.angle;
           fold_angle_rad = get_fold_angle(normal_angle_rad);
           gimbal::target_angle.fold = fold_angle_rad;
@@ -121,28 +122,25 @@ extern "C" void gimbal_fold_task(void const * argument)
         // 目标角交给 gimbal_task.cpp 的折叠位置 PID 执行。
         gimbal::target_angle.fold = fold_angle_rad;
 
-        if (is_fold_angle_reached(fold_angle_rad)) 
-        {
+        if (is_fold_angle_reached(fold_angle_rad)) {
           // 必须从真正折叠到位的时刻开始计算行程，不能把折叠动作时间算进去。
           auto_restore_enabled = auto_straight.active();
-          auto_distance_at_folded_m = auto_straight.travelled_m();
+          auto_distance_at_folded_m = chassis_travelled_m;
           fold_state = FoldState::FOLDED;
-        } else if (now_ms - action_start_time_ms >= FOLD_ACTION_TIMEOUT_MS) 
-        {
+        }
+        else if (now_ms - action_start_time_ms >= FOLD_ACTION_TIMEOUT_MS) {
           fold_state = FoldState::FAULT;
         }
         break;
 
-      case FoldState::FOLDED:
-      {
+      case FoldState::FOLDED: {
         // 保持折叠目标。自动模式本身由 chassis_task.cpp 驱动，这里只读取它的状态和行程。
         gimbal::target_angle.fold = fold_angle_rad;
 
         // 不能调用 auto_straight.update()，否则会与 chassis_task.cpp 重复累加行程。
         const bool auto_distance_reached =
           auto_restore_enabled && auto_straight.active() &&
-          auto_straight.travelled_m() - auto_distance_at_folded_m >=
-            RESTORE_TRAVEL_DISTANCE_M;
+          auto_straight.travelled_m() - auto_distance_at_folded_m >= RESTORE_TRAVEL_DISTANCE_M;
 
         if (auto_distance_reached) {
           auto_restore_enabled = false;
@@ -157,11 +155,10 @@ extern "C" void gimbal_fold_task(void const * argument)
         // 自动行程达到阈值后，发布正常角度，由现有位置 PID 执行复位。
         gimbal::target_angle.fold = normal_angle_rad;
 
-        if (is_fold_angle_reached(normal_angle_rad)) 
-        {
+        if (is_fold_angle_reached(normal_angle_rad)) {
           fold_state = FoldState::NORMAL;
-        } else if (now_ms - action_start_time_ms >= FOLD_ACTION_TIMEOUT_MS) 
-        {
+        }
+        else if (now_ms - action_start_time_ms >= FOLD_ACTION_TIMEOUT_MS) {
           fold_state = FoldState::FAULT;
         }
         break;

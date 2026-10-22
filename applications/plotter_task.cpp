@@ -1,25 +1,30 @@
-#include "cmsis_os.h"
 #include "chassis_controller.hpp"
+#include "cmsis_os.h"
 #include "io/plotter/plotter.hpp"
+#include "motor/rm_motor/rm_motor.hpp"
 #include "power_meter.hpp"
+#include "trajectory_task.hpp"
 
 // 当前 Plotter 使用 USART1。使用时必须暂时停用激光任务，避免和 LaserGY56 共用 huart1。
 sp::Plotter plotter(&huart1);
 
 extern chassis::Controller chassis_controller;
 extern sp::PowerMeter power_meter;
+extern sp::RM_Motor motor_yaw;
+extern sp::RM_Motor motor_pitch;
 
 namespace
 {
 // 每次只选择一个模式，SerialPlot 的通道数量就等于对应 plotter.plot() 的参数数量。
 enum class PlotMode
 {
-  LINK_TEST,       // 1 个固定值，先验证串口链路
-  COMMAND,         // vx、vy、wz
-  TARGET_WHEELS,   // 四个目标轮速
-  LF_PID,          // 左前轮目标速度、实际速度、PID 力矩
-  POWER,           // K、预测功率、实际功率
-  ALL,             // 完整 18 通道
+  LINK_TEST,      // 1 个固定值，先验证串口链路
+  COMMAND,        // vx、vy、wz
+  TARGET_WHEELS,  // 四个目标轮速
+  LF_PID,         // 左前轮目标速度、实际速度、PID 力矩
+  POWER,          // K、预测功率、实际功率
+  TRAJICEORY,     // 轨迹规划器输出的前进速度、角速度、加速度
+  ALL,            // 完整 18 通道
 };
 
 // 调试时只修改这一行，不要同时打开多个 plotter.plot()。
@@ -53,13 +58,16 @@ void plot_selected_data()
       plotter.plot(data.power_scale, data.predicted_power, actual_power);
       break;
 
+    case PlotMode::TRAJICEORY:
+      plotter.plot(yaw, motor_yaw.angle, pitch, motor_pitch.angle);
+      break;
+
     case PlotMode::ALL:
       plotter.plot(
-        data.command_vx, data.command_vy, data.command_wz,
-        data.target_lf, data.target_lr, data.target_rf, data.target_rr,
-        data.speed_lf, data.speed_lr, data.speed_rf, data.speed_rr,
-        data.torque_lf, data.torque_lr, data.torque_rf, data.torque_rr,
-        data.power_scale, data.predicted_power, actual_power);
+        data.command_vx, data.command_vy, data.command_wz, data.target_lf, data.target_lr,
+        data.target_rf, data.target_rr, data.speed_lf, data.speed_lr, data.speed_rf, data.speed_rr,
+        data.torque_lf, data.torque_lr, data.torque_rf, data.torque_rr, data.power_scale,
+        data.predicted_power, actual_power);
       break;
   }
 }

@@ -79,3 +79,5 @@ GY-56 通过 applications/laser_task.cpp 发布 distance，检测到前方距离
 折叠到位后读取 auto_straight 的已行驶距离，超过设定行程后复位云台。
 auto_straight 只由 chassis_task.cpp 调用 update()，折叠任务只读取 active() 和 travelled_m()，避免重复累加行程。
 折叠角度偏移、入口距离、复位行程和动作超时位于 applications/gimbal_fold_task.cpp，实机调试时按结构尺寸和反馈调整。
+
+加入调试用的云台轨迹追踪任务，在使能情况下左拨杆上档触发。

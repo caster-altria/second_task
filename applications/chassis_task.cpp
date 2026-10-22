@@ -9,6 +9,8 @@ extern sp::CAN can1;
 chassis::Controller chassis_controller;  // 全局，供 can_task.cpp 的中断调用
 chassis::AutoStraight auto_straight;
 
+float chassis_travelled_m = 0.0f;
+
 extern "C" void chassis_task(void const * argument)
 {
   (void)argument;
@@ -28,6 +30,7 @@ extern "C" void chassis_task(void const * argument)
 
     if (!remote_online || remote.sw_r == sp::DBusSwitchMode::DOWN) {
       auto_straight.stop();
+      chassis_travelled_m = 0.0f;
     }
     else if (remote.sw_r == sp::DBusSwitchMode::UP) {
       // 自动：右拨杆上档，直线行驶至设定里程
@@ -44,6 +47,7 @@ extern "C" void chassis_task(void const * argument)
         auto_straight.stop();
       }
       chassis_controller.update(input, now_ms);
+      chassis_travelled_m += chassis_controller.measured_vx() * 0.001f;
     }
 
     chassis_controller.update_motor_control(now_ms);

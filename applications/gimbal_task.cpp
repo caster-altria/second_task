@@ -6,6 +6,7 @@
 #include "io/dbus/dbus.hpp"
 #include "motor/rm_motor/rm_motor.hpp"
 #include "tools/pid/pid.hpp"
+#include "trajectory_task.hpp"
 
 sp::RM_Motor motor_fold(3, sp::RM_Motors::M2006, 36.0f);
 sp::RM_Motor motor_yaw(1, sp::RM_Motors::GM6020);
@@ -29,6 +30,9 @@ extern "C" void gimbal_task(void const * argument)
       motor_yaw.is_alive(now_ms) && motor_pitch.is_alive(now_ms) && motor_fold.is_alive(now_ms);
     const bool was_disabled = gimbal_controller.state() == gimbal::State::DISABLED;
 
+    //调试用，左拨杆上档启用追踪
+    const bool track_requested = remote_online && remote.sw_l == sp::DBusSwitchMode::UP;
+
     if (!remote_online || switch_down || !motors_ok) {
       // 失能：清 PID，写零力矩
       gimbal::pid_yaw.clear();
@@ -48,6 +52,11 @@ extern "C" void gimbal_task(void const * argument)
         gimbal::target_angle.pitch = motor_pitch.angle;
         gimbal::target_angle.fold = motor_fold.angle;
       }
+
+      if (track_requested) {
+        gimbal::target_angle.yaw = yaw;
+        gimbal::target_angle.pitch = pitch;
+      }
       // 中档 / 上档：限幅后pid输出
       gimbal::target_angle.yaw = std::fmin(
         std::fmax(gimbal::target_angle.yaw, gimbal::YAW_ANGLE_MIN_RAD), gimbal::YAW_ANGLE_MAX_RAD);
@@ -59,8 +68,9 @@ extern "C" void gimbal_task(void const * argument)
         gimbal::FOLD_ANGLE_MAX_RAD);
 
       // 位置环：目标角与实测角之差 → 力矩
-      gimbal::pid_yaw.calc(gimbal::target_angle.yaw, motor_yaw.angle);
-      gimbal::pid_pitch.calc(gimbal::target_angle.pitch, motor_pitch.angle);
+      gimbal::pid_yaw.calc(gimbal::target_angle.yaw, motor_yaw.angle, yaw_vel, motor_yaw.speed);
+      gimbal::pid_pitch.calc(
+        gimbal::target_angle.pitch, motor_pitch.angle, pitch_vel, motor_pitch.speed);
       gimbal::pid_fold.calc(gimbal::target_angle.fold, motor_fold.angle);
 
       motor_yaw.cmd(gimbal::pid_yaw.out);
