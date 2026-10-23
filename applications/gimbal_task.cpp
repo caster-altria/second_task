@@ -9,9 +9,9 @@
 #include "tools/pid/pid.hpp"
 #include "trajectory_task.hpp"
 
-sp::RM_Motor motor_fold(3, sp::RM_Motors::M2006, 36.0f);
+sp::RM_Motor motor_fold(2, sp::RM_Motors::GM6020);
 sp::RM_Motor motor_yaw(1, sp::RM_Motors::GM6020);
-sp::RM_Motor motor_pitch(2, sp::RM_Motors::GM6020);
+sp::RM_Motor motor_pitch(3, sp::RM_Motors::M2006, 36.0f);
 
 gimbal::GimbalController gimbal_controller;
 

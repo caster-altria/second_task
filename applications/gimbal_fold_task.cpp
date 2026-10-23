@@ -48,7 +48,7 @@ constexpr uint32_t FOLD_ACTION_TIMEOUT_MS = 3000;
 
 // 正常角度加上这个偏移量得到折叠目标角度，单位为 rad。
 // 当前尚未完成实机标定，暂时为 0；实测后再填写实际折叠方向和角度。
-constexpr float FOLD_ANGLE_OFFSET_RAD = 0.0f;
+constexpr float FOLD_ANGLE_OFFSET_RAD = 0.79f;
 
 bool is_fold_angle_reached(float target_angle_rad)
 {

@@ -30,7 +30,7 @@ extern "C" void can_task()
 
     can2.send(motor_yaw.tx_id);
 
-    can2.send(motor_fold.tx_id);
+    can2.send(motor_pitch.tx_id);
 
     osDelay(1);
   }
