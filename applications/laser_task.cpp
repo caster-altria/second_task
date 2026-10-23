@@ -1,7 +1,7 @@
 #include "cmsis_os.h"
 #include "io/laser/laser.hpp"
 
-sp::LaserGY56 laser(&huart1);
+sp::LaserGY56 laser(&huart6);
 uint16_t distance = 0xFFFF;
 
 extern "C" void laser_task()

@@ -5,10 +5,10 @@ led_task
 常态下驱动流水灯，便于观察任务是否阻塞
 
 laser_task 
-在正常工作时，每毫秒将距离以单位cm存储到变量distance中，异常返回0xFFFF，c板波特率需要根据实际情况进行更改。#c板基本功能
+在正常工作时，每毫秒将距离以单位cm存储到变量distance中，异常返回0xFFFF。
 
 plotter_task
-将需求的数据通过上位机打印，与laser_task不可同时工作,与laser使用不同波特率
+将需求的数据通过上位机打印。
 
 uart_task 
 创建和遥控器的通讯，创建和裁判系统通讯，进行huart的回调，为避免重定义，如果有其他task需要调用HAL_UART_ErrorCallback或HAL_UARTEx_RxEventCallback，向此文件中添加分支

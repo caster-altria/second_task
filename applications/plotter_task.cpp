@@ -5,7 +5,6 @@
 #include "power_meter.hpp"
 #include "trajectory_task.hpp"
 
-// 当前 Plotter 使用 USART1。使用时必须暂时停用激光任务，避免和 LaserGY56 共用 huart1。
 sp::Plotter plotter(&huart1);
 
 extern chassis::Controller chassis_controller;
