@@ -40,6 +40,7 @@ extern "C" void chassis_task(void const * argument)
       const float measured_vx = chassis_controller.measured_vx();
       const float vx_cmd = auto_straight.update(measured_vx);
       chassis_controller.set_auto_speed(vx_cmd);
+      chassis_travelled_m += chassis_controller.measured_vx() * 0.001f;
     }
     else {
       // 中档：手动。退出自动时回到失能，要求摇杆回中解锁

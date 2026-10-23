@@ -140,7 +140,7 @@ extern "C" void gimbal_fold_task(void const * argument)
         // 不能调用 auto_straight.update()，否则会与 chassis_task.cpp 重复累加行程。
         const bool auto_distance_reached =
           auto_restore_enabled && auto_straight.active() &&
-          auto_straight.travelled_m() - auto_distance_at_folded_m >= RESTORE_TRAVEL_DISTANCE_M;
+          chassis_travelled_m - auto_distance_at_folded_m >= RESTORE_TRAVEL_DISTANCE_M;
 
         if (auto_distance_reached) {
           auto_restore_enabled = false;

@@ -24,6 +24,9 @@ public:
   // [只读] 是否处于直行过程中
   bool active() const;
 
+  // [只读] 本次直行是否已跑满设定里程
+  bool finished() const;
+
 private:
   bool active_ = false;
   bool finished_ = false;

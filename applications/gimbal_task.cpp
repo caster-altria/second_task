@@ -1,5 +1,6 @@
 #include <cmath>
 
+#include "auto_straight.hpp"
 #include "cmsis_os.h"
 #include "gimbal_controller.hpp"
 #include "io/can/can.hpp"
@@ -16,6 +17,7 @@ gimbal::GimbalController gimbal_controller;
 
 extern sp::DBus remote;
 extern sp::CAN can2;
+extern chassis::AutoStraight auto_straight;
 
 extern "C" void gimbal_task(void const * argument)
 {
@@ -53,7 +55,7 @@ extern "C" void gimbal_task(void const * argument)
         gimbal::target_angle.fold = motor_fold.angle;
       }
 
-      if (track_requested) {
+      if (track_requested || auto_straight.finished()) {
         gimbal::target_angle.yaw = yaw;
         gimbal::target_angle.pitch = pitch;
       }

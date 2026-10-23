@@ -41,4 +41,6 @@ void AutoStraight::stop()
 float AutoStraight::travelled_m() const { return this->travelled_m_; }
 
 bool AutoStraight::active() const { return this->active_; }
+
+bool AutoStraight::finished() const { return this->finished_; }
 }  // namespace chassis
