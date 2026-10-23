@@ -66,6 +66,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     sp_middleware/io/bmi088/bmi088.cpp 
     sp_middleware/tools/mahony/mahony.cpp 
     sp_middleware/tools/gimbal/gimbal.cpp # imu
+    sp_middleware/tools/low_pass_filter/low_pass_filter.cpp
 
     applications/plotter_task.cpp 
     sp_middleware/io/plotter/plotter.cpp # plotter

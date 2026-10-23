@@ -4,6 +4,7 @@
 
 #include "cmsis_os.h"
 #include "motor/rm_motor/rm_motor.hpp"
+#include "tools/math_tools/math_tools.hpp"
 #include "tools/pid/pid.hpp"
 
 namespace
@@ -34,15 +35,52 @@ constexpr float PITCH_MAX_INTEGRAL_OUTPUT = 0.0f;
 constexpr float PITCH_D_FILTER_ALPHA = 1.0f;
 
 // ===== 折叠位置环：set 目标角度 rad，fdb 实测角度 rad，out 力矩 N·m =====
-constexpr float FOLD_KP = 0.9f;
-constexpr float FOLD_KI = 0.0f;
-constexpr float FOLD_KD = 0.0f;
+constexpr float FOLD_KP = 1.0f;
+constexpr float FOLD_KI = 0.5f;
+constexpr float FOLD_KD = 0.05f;  // 作用于电机角速度 rad/s，起阻尼作用
 
 constexpr float FOLD_MAX_OUTPUT = sp::GM6020_MAX_TORQUE;
-constexpr float FOLD_MAX_INTEGRAL_OUTPUT = 0.0f;
+constexpr float FOLD_MAX_INTEGRAL_OUTPUT = 0.5f;
 
 constexpr float FOLD_D_FILTER_ALPHA = 1.0f;
+
 }  // namespace
+
+namespace gimbal
+{
+/*cpp中定义*/
+//yaw定义:
+void yaw_detect(float gimbal_angle, float plan_angle, float* fire_ratio)
+{
+  if (fire_ratio == nullptr) {
+    return;
+  }
+  constexpr float alpha = 0.001f;                  // 1ms的freertos对应的滤波系数
+  constexpr float threshold = 0.5f / 57.3f;    // 角度转换成弧度
+
+  static uint8_t fire = 0;  
+
+  fire = (fabs(gimbal_angle - plan_angle) < threshold) ? 1u : 0u;
+
+  *fire_ratio = alpha * static_cast<float>(fire) + (1.0f - alpha) * (*fire_ratio);
+}
+
+//pitch定义:
+void pitch_detect(float gimbal_angle, float plan_angle, float* fire_ratio)
+{
+  if (fire_ratio == nullptr) {
+    return;
+  }
+  constexpr float alpha = 0.001f;                  // 1ms的freertos对应的滤波系数
+  constexpr float threshold = 1.5f / 57.3f;    // 角度转换成弧度
+
+  static uint8_t fire = 0;  
+
+  fire = (fabs(gimbal_angle - plan_angle) < threshold) ? 1u : 0u;
+
+  *fire_ratio = alpha * static_cast<float>(fire) + (1.0f - alpha) * (*fire_ratio);
+}
+}  // namespace gimbal
 
 namespace gimbal
 {
@@ -63,7 +101,15 @@ sp::PID pid_pitch(
 // 折叠位置环 PID
 sp::PID pid_fold(
   PID_DT, FOLD_KP, FOLD_KI, FOLD_KD, FOLD_MAX_OUTPUT, FOLD_MAX_INTEGRAL_OUTPUT,
-  FOLD_D_FILTER_ALPHA);
+  FOLD_D_FILTER_ALPHA, true);
 
 gimbal::GimbalCommand target_angle;
+
+float fold_zero_rad = 0.0f;
+bool fold_zero_valid = false;
+
+float fold_relative_angle(float absolute_angle_rad)
+{
+  return sp::limit_angle(absolute_angle_rad - fold_zero_rad);
+}
 }  // namespace gimbal

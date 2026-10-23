@@ -55,6 +55,18 @@ constexpr float PITCH_ANGLE_MAX_RAD = 0.9f;
 constexpr float FOLD_ANGLE_MIN_RAD = 0.0f;
 constexpr float FOLD_ANGLE_MAX_RAD = 1.57f;
 
+// 折叠轴以上电后反馈稳定时的角度为零位；target_angle.fold 及上面的折叠限幅均为相对该零位的角度
+extern float fold_zero_rad;
+extern bool fold_zero_valid;
+
+// 电机绝对角度 -> 相对零位的角度，已归一化到 (-PI, PI]
+float fold_relative_angle(float absolute_angle_rad);
+
+
+void yaw_detect(float gimbal_angle, float plan_angle, float* fire_ratio);
+void pitch_detect(float gimbal_angle, float plan_angle, float* fire_ratio);
+
+
 // 位置环 PID 与目标角，定义在 gimbal_controller.cpp
 extern sp::PID pid_yaw;
 extern sp::PID pid_pitch;

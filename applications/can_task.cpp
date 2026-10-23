@@ -26,8 +26,6 @@ extern "C" void can_task()
   can2.start();
 
   while (true) {
-    can1.send(chassis_controller.motor_tx_id());
-
     can2.send(motor_yaw.tx_id);
 
     can2.send(motor_pitch.tx_id);
