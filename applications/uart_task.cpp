@@ -1,9 +1,11 @@
 #include "cmsis_os.h"
 #include "io/dbus/dbus.hpp"
 #include "io/laser/laser.hpp"
+#include "referee/pm02/pm02.hpp"
 
 // C板
 sp::DBus remote(&huart3);
+sp::PM02 pm02(&huart6);
 
 // 达妙
 // sp::DBus remote(&huart5, false);
@@ -30,8 +32,9 @@ extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t 
     remote.request();
   }
 
-  if (huart == &huart6) {
-    laser.receive_complete(Size);
+  if (huart == pm02.huart) {
+    pm02.update(Size);
+    pm02.request();
   }
 }
 
@@ -41,7 +44,7 @@ extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef * huart)
     remote.request();
   }
 
-  if (huart == &huart6) {
-    laser.start_receive();
+  if (huart == pm02.huart) {
+    pm02.request();
   }
 }

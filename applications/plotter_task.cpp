@@ -3,6 +3,8 @@
 #include "io/plotter/plotter.hpp"
 #include "motor/rm_motor/rm_motor.hpp"
 #include "power_meter.hpp"
+#include "referee/pm02/pm02.hpp"
+#include "referee/referee_protocol/referee_protocol.hpp"
 #include "trajectory_task.hpp"
 
 sp::Plotter plotter(&huart1);
@@ -11,6 +13,7 @@ extern chassis::Controller chassis_controller;
 extern sp::PowerMeter power_meter;
 extern sp::RM_Motor motor_yaw;
 extern sp::RM_Motor motor_pitch;
+extern sp::PM02 pm02;
 
 namespace
 {
@@ -27,7 +30,7 @@ enum class PlotMode
 };
 
 // 调试时只修改这一行，不要同时打开多个 plotter.plot()。
-constexpr PlotMode kPlotMode = PlotMode::LF_PID;
+constexpr PlotMode kPlotMode = PlotMode::POWER;
 constexpr uint32_t kPlotPeriodMs = 10U;
 
 void plot_selected_data()
@@ -54,7 +57,7 @@ void plot_selected_data()
       break;
 
     case PlotMode::POWER:
-      plotter.plot(data.power_scale, data.predicted_power, actual_power);
+      plotter.plot(80.0f, actual_power);
       break;
 
     case PlotMode::TRAJICEORY:

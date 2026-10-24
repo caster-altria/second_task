@@ -2,8 +2,8 @@
 
 namespace
 {
-constexpr float AUTO_SPEED = 0.30f;      // 自动直行速度，单位 m/s
-constexpr float AUTO_DISTANCE_M = 0.3f;  // 启动区到结束区行程，单位 m
+constexpr float AUTO_SPEED = 1.0f;       // 自动直行速度，单位 m/s
+constexpr float AUTO_DISTANCE_M = 4.0f;  // 启动区到结束区行程，单位 m
 constexpr float PERIOD_S = 0.001f;       // 任务周期，单位 s
 }  // namespace
 

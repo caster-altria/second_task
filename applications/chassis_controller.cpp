@@ -26,24 +26,24 @@ constexpr float STICK_DEADBAND = 0.12f;
 constexpr uint32_t ARMING_HOLD_MS = 200U;
 
 // 保守的底盘速度上限，后续实车调试时再调整
-constexpr float MAX_VX = 1.0f;
-constexpr float MAX_VY = 2.0f;
-constexpr float MAX_WZ = 1.0f;
+constexpr float MAX_VX = 3.0f;
+constexpr float MAX_VY = 6.0f;
+constexpr float MAX_WZ = 3.0f;
 
 // DBUS 摇杆方向与麦轮坐标系方向的暂定修正符号
 constexpr float VY_INPUT_SIGN = -1.0f;
 constexpr float WZ_INPUT_SIGN = -1.0f;
 
 // 四个轮子的统一目标角速度上限，单位: rad/s。
-constexpr float MAX_WHEEL_SPEED = 4.55f;
+constexpr float MAX_WHEEL_SPEED = 13.64f;
 
 // 功率预测模型参数，公式来自《底盘功率控制》附件：
 // Pin = Σ(τ * ω) + K1 * Σ(τ²) + K2 * Σ(ω²) + K3
 // K1、K2 使用附件给出的初始经验值；K3 和功率上限需要接入实测数据后再替换。
-constexpr float POWER_K1 = 2.8f;
+constexpr float POWER_K1 = 3.0f;
 constexpr float POWER_K2 = 0.01f;
 constexpr float POWER_K3 = 4.0f;      // 暂定静态功率，单位: W
-constexpr float POWER_LIMIT = 60.0f;  // 暂定输入功率上限，单位: W
+constexpr float POWER_LIMIT = 80.0f;  // 暂定输入功率上限，单位: W
 constexpr float POWER_QUADRATIC_EPSILON = 1.0e-6f;
 
 // 功率模型的参考系必须和拟合 K1、K2 时使用的参考系一致。
@@ -175,46 +175,26 @@ constexpr float WHEEL_KI = 0.0f;
 constexpr float WHEEL_KD = 0.0005f;
 
 // PID输出单位为 N·m，先设置保守上限。
-constexpr float WHEEL_MAX_OUTPUT = 1.0f;
+constexpr float WHEEL_MAX_OUTPUT = 1.5f;
 constexpr float WHEEL_MAX_INTEGRAL_OUTPUT = 0.2f;
 
 // kd为0时该参数暂时没有作用。
 constexpr float WHEEL_D_FILTER_ALPHA = 1.0f;
 
 sp::PID pid_lf(
-  PID_DT,
-  WHEEL_KP,
-  WHEEL_KI,
-  WHEEL_KD,
-  WHEEL_MAX_OUTPUT,
-  WHEEL_MAX_INTEGRAL_OUTPUT,
+  PID_DT, WHEEL_KP, WHEEL_KI, WHEEL_KD, WHEEL_MAX_OUTPUT, WHEEL_MAX_INTEGRAL_OUTPUT,
   WHEEL_D_FILTER_ALPHA);
 
 sp::PID pid_lr(
-  PID_DT,
-  WHEEL_KP,
-  WHEEL_KI,
-  WHEEL_KD,
-  WHEEL_MAX_OUTPUT,
-  WHEEL_MAX_INTEGRAL_OUTPUT,
+  PID_DT, WHEEL_KP, WHEEL_KI, WHEEL_KD, WHEEL_MAX_OUTPUT, WHEEL_MAX_INTEGRAL_OUTPUT,
   WHEEL_D_FILTER_ALPHA);
 
 sp::PID pid_rf(
-  PID_DT,
-  WHEEL_KP,
-  WHEEL_KI,
-  WHEEL_KD,
-  WHEEL_MAX_OUTPUT,
-  WHEEL_MAX_INTEGRAL_OUTPUT,
+  PID_DT, WHEEL_KP, WHEEL_KI, WHEEL_KD, WHEEL_MAX_OUTPUT, WHEEL_MAX_INTEGRAL_OUTPUT,
   WHEEL_D_FILTER_ALPHA);
 
 sp::PID pid_rr(
-  PID_DT,
-  WHEEL_KP,
-  WHEEL_KI,
-  WHEEL_KD,
-  WHEEL_MAX_OUTPUT,
-  WHEEL_MAX_INTEGRAL_OUTPUT,
+  PID_DT, WHEEL_KP, WHEEL_KI, WHEEL_KD, WHEEL_MAX_OUTPUT, WHEEL_MAX_INTEGRAL_OUTPUT,
   WHEEL_D_FILTER_ALPHA);
 
 }  // namespace
