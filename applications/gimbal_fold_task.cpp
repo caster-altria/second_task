@@ -41,7 +41,7 @@ constexpr uint16_t INVALID_DISTANCE_CM = 0xFFFF;
 constexpr uint16_t FOLD_DISTANCE_CM = 75;
 
 // 折叠到位后延时该时间再复位到零点，单位为 ms。
-constexpr uint32_t RESTORE_DELAY_MS = 8000;
+constexpr uint32_t RESTORE_DELAY_MS = 6000;
 
 // 目标角度与电机反馈角度的误差小于该值时，认为动作到位，单位为 rad。
 constexpr float FOLD_ANGLE_TOLERANCE_RAD = 0.05f;

@@ -1,6 +1,7 @@
 #include "chassis_controller.hpp"
 #include "cmsis_os.h"
 #include "io/plotter/plotter.hpp"
+#include "io/laser/laser.hpp"
 #include "motor/rm_motor/rm_motor.hpp"
 #include "power_meter.hpp"
 #include "trajectory_task.hpp"
@@ -11,6 +12,9 @@ extern chassis::Controller chassis_controller;
 extern sp::PowerMeter power_meter;
 extern sp::RM_Motor motor_yaw;
 extern sp::RM_Motor motor_pitch;
+extern float yaw_ratio;
+extern float pitch_ratio;
+extern sp::LaserGY56 laser;
 
 namespace
 {
@@ -22,12 +26,12 @@ enum class PlotMode
   TARGET_WHEELS,  // 四个目标轮速
   LF_PID,         // 左前轮目标速度、实际速度、PID 力矩
   POWER,          // K、预测功率、实际功率
-  TRAJICEORY,     // 轨迹规划器输出的前进速度、角速度、加速度
+  TRAJICEORY,     // 目标/实际 yaw、pitch，yaw_ratio、pitch_ratio
   ALL,            // 完整 18 通道
 };
 
 // 调试时只修改这一行，不要同时打开多个 plotter.plot()。
-constexpr PlotMode kPlotMode = PlotMode::LF_PID;
+constexpr PlotMode kPlotMode = PlotMode::TRAJICEORY;
 constexpr uint32_t kPlotPeriodMs = 10U;
 
 void plot_selected_data()
@@ -58,7 +62,7 @@ void plot_selected_data()
       break;
 
     case PlotMode::TRAJICEORY:
-      plotter.plot(yaw, motor_yaw.angle, pitch, motor_pitch.angle);
+      plotter.plot(yaw_ratio, pitch_ratio,yaw, motor_yaw.angle, pitch, motor_pitch.angle,laser.get_distance());
       break;
 
     case PlotMode::ALL:
